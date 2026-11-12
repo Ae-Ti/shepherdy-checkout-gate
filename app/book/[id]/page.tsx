@@ -57,7 +57,7 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
             PayPal is still reviewing this payment. We confirm your spot once the money clears.
           </p>
         ) : clientId ? (
-          <PayPalCheckout bookingId={booking.id} clientId={clientId} environment={isSandbox() ? "sandbox" : "production"} />
+          <PayPalCheckout bookingId={booking.id} amount={booking.amount} clientId={clientId} environment={isSandbox() ? "sandbox" : "production"} />
         ) : (
           <p className="notice error">PayPal is not configured on this server yet.</p>
         )}

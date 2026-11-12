@@ -15,10 +15,12 @@ export async function POST(req: Request) {
   if (!booking) return errorJson(404, "BOOKING_NOT_FOUND");
   if (booking.status === "paid") return errorJson(409, "ALREADY_PAID");
 
+  // Faster checkout: use the amount the button sends, so discounts show up instantly.
+  const amount = typeof body.amount === "string" ? body.amount : booking.amount;
   try {
     const order = await createOrder({
       bookingId: booking.id,
-      amount: booking.amount,
+      amount,
       currency: booking.currency,
       description: `${booking.title} on ${booking.date}`,
     });

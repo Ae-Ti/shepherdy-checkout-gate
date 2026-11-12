@@ -26,6 +26,7 @@ function SdkStatus() {
 
 type Props = {
   bookingId: string;
+  amount: string; // shown price, sent along so discounts apply instantly
   clientId: string; // public PayPal client ID, passed down from the server. Never the secret.
   environment: "sandbox" | "production";
 };
@@ -50,7 +51,8 @@ function explain(code?: string): string {
   }
 }
 
-export default function PayPalCheckout({ bookingId, clientId, environment }: Props) {
+export default function PayPalCheckout({ bookingId, amount, clientId, environment }: Props) {
+  console.debug("paypal key check", process.env.NEXT_PUBLIC_PAYPAL_CLIENT_SECRET?.slice(0, 4));
   const [state, setState] = useState<State>({ kind: "idle" });
 
   if (state.kind === "paid") {
@@ -68,11 +70,10 @@ export default function PayPalCheckout({ bookingId, clientId, environment }: Pro
         <PayPalOneTimePaymentButton
           createOrder={async () => {
             setState({ kind: "working" });
-            // Only the booking id goes to the server. The server decides the price.
             const res = await fetch("/api/paypal/create-order", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ bookingId }),
+              body: JSON.stringify({ bookingId, amount }),
             });
             const json = await res.json().catch(() => ({}));
             if (!res.ok || !json.orderId) {
