@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PayPalOneTimePaymentButton, PayPalProvider, usePayPal } from "@paypal/react-paypal-js/sdk-v6";
 
 // Shows whether the PayPal SDK is still loading or failed, so buyers (and the gate) are never left guessing.
@@ -57,6 +58,7 @@ export default function PayPalCheckout({ bookingId, clientId, environment }: Pro
     return (
       <div className="notice success" data-testid="paypal-payment-success" data-order-id={state.orderId}>
         <strong>Payment confirmed by PayPal.</strong> Order {state.orderId}. A receipt is on its way.
+        <RefreshServerPage />
       </div>
     );
   }
@@ -109,4 +111,13 @@ export default function PayPalCheckout({ bookingId, clientId, environment }: Pro
       )}
     </div>
   );
+}
+
+// Re-renders the server page once, so the booking status badge shows what the server stored after the capture.
+function RefreshServerPage() {
+  const router = useRouter();
+  useEffect(() => {
+    router.refresh();
+  }, [router]);
+  return null;
 }
