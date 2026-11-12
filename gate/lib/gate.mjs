@@ -8,6 +8,7 @@ import { createPayPal } from "./paypal.mjs";
 import { decide } from "./verdict.mjs";
 import { writeReport } from "./report.mjs";
 import { git, gitInfo, readJsonFile, skipped, writeJsonFile } from "./util.mjs";
+import { mergeRoutes } from "./routes.mjs";
 
 const DEFAULTS = {
   experienceId: "sunrise-kayak",
@@ -18,6 +19,11 @@ const DEFAULTS = {
   sourceDirs: ["app", "components", "lib"],
   manualApprovalTimeoutSec: 300,
 };
+
+// The app's gate.config.json over the defaults; "routes" is merged key by key.
+export function resolveConfig(raw = {}) {
+  return { ...DEFAULTS, ...raw, routes: mergeRoutes(raw.routes) };
+}
 
 const MARK = { pass: "✔", blocked: "✖", inconclusive: "?", skipped: "–" };
 
@@ -31,7 +37,7 @@ function printSummary(report, log) {
 
 export async function runGate(opts) {
   const appDir = path.resolve(opts.appDir ?? process.cwd());
-  const config = { ...DEFAULTS, ...readJsonFile(path.join(appDir, "gate.config.json"), {}) };
+  const config = resolveConfig(readJsonFile(path.join(appDir, "gate.config.json"), {}));
   const env = loadAppEnv(appDir);
   const outDir = path.resolve(opts.outDir ?? path.join(appDir, ".gate"));
   const ctx = {

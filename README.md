@@ -210,27 +210,63 @@ commit.
 
 ## Use it on your own app
 
-Today the gate is built for Next.js apps with a server-side PayPal Orders v2 checkout. What carries over as is,
-and what an app has to provide:
+The gate runs against any app folder with `--app`. It reads that app's `gate.config.json` and `.env.local`, and
+writes the report to `<app>/.gate/` unless you pass `--out`.
 
-| Part | Works on another app? |
-|---|---|
-| S1–S3 (secret in the built bundle, `NEXT_PUBLIC_`/client leaks, git history and rotation lock) | Not tied to this app: they read the build output, the source folders and git history. Put a `gate.config.json` with `sourceDirs` in your app and run `node gate/run.mjs --static-only --app <path-to-your-app>`. Not yet tried on a second app. |
-| D1–D4, A1–A6, E1 (attacks and the real sandbox payment) | Yes, if the app exposes the small HTTP contract below, or a thin adapter that maps it to your routes. |
-| Playbook PP-00…PP-09 | Yes. It is plain Markdown that any coding agent can follow while it writes the integration. |
-| Fix loop | Yes. The fixer edits only the folders listed in `agent/fixer.mjs`; any other agent plugs in with `AGENT_CMD`. |
+### Static checks on any Next.js app (S1–S3)
 
-The HTTP contract the attack checks use:
+S1–S3 read the app's build output, its source folders and its git history, so they do not depend on this demo
+store. In your app:
 
-- `GET /api/health`
-- `POST /api/bookings {experienceId, guestName, email}` → `201 {bookingId}`
-- `POST /api/paypal/create-order {bookingId}` → `{orderId}`
-- `POST /api/paypal/capture-order {orderId, bookingId}`
-- `GET /api/paypal/booking-status?bookingId=`
-- a page at `/book/<bookingId>` that renders the PayPal button
+1. Put `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `PAYPAL_API_BASE=https://api-m.sandbox.paypal.com` in
+   `.env.local`. S1 searches the built files for the exact secret value, so it needs the real sandbox secret.
+2. Add a `gate.config.json` that lists your source folders, for example `{ "sourceDirs": ["app", "components"] }`.
+3. Run `next build`, then run the gate from a clone of this repo:
 
-`gate.config.json` holds the test item and the price it must cost (`experienceId`, `expectedAmount`).
-Configurable route names and adapters for other frameworks are next on the list.
+```bash
+node gate/run.mjs --static-only --app /path/to/your-app
+```
+
+A leak makes the run BLOCKED and exits 1. A clean run exits 0 with the verdict INCONCLUSIVE, because READY also
+needs the attacks and the sandbox payment.
+
+This was checked on a second, separate Next.js app: with a `next.config` that copied the secret into
+`NEXT_PUBLIC_PAYPAL_CLIENT_SECRET` and a client component that rendered it, S1 found the secret in 2 browser files,
+S2 found 4 places that expose it, and the run was BLOCKED. After the leak was removed and the app rebuilt, S1–S3
+passed.
+
+### Attacks and the sandbox payment (A1–A6, E1)
+
+These need the app to follow a small HTTP contract: a pending booking (or order) record that the server prices,
+and two PayPal routes keyed by its ID.
+
+| Route key | Default | What the gate sends and expects |
+|---|---|---|
+| `health` | `/api/health` | `GET` → `{ok: true, sandbox: true}` when the app can store bookings and points at the PayPal sandbox |
+| `createBooking` | `/api/bookings` | `POST {experienceId, guestName, email}` → `201 {bookingId}` |
+| `createOrder` | `/api/paypal/create-order` | `POST {bookingId}` → `{orderId}` |
+| `captureOrder` | `/api/paypal/capture-order` | `POST {orderId, bookingId}` |
+| `bookingStatus` | `/api/paypal/booking-status` | `GET ?bookingId=` → `{status}`, where a paid booking says `paid` |
+| `bookPage` | `/book/{bookingId}` | the page that renders the PayPal button |
+
+If your routes have other paths, map them in `gate.config.json`; any key you leave out keeps its default:
+
+```json
+{
+  "experienceId": "your-test-item",
+  "expectedAmount": "49.00",
+  "routes": { "createOrder": "/api/checkout/order", "bookPage": "/orders/{bookingId}/pay" }
+}
+```
+
+The request and response shapes still follow the table above. Adapters for apps with other shapes, and for
+frameworks other than Next.js, are next.
+
+### Other parts
+
+- **Playbook PP-00…PP-09:** plain Markdown that any coding agent can follow while it writes the integration.
+- **Fix loop:** the fixer edits only the folders listed in `agent/fixer.mjs`; any other agent plugs in with
+  `AGENT_CMD`.
 
 ## Deploy (Vercel)
 

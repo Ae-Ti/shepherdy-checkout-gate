@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { Inconclusive, STATUS, httpJson, runCheck } from "./util.mjs";
 import { orderFacts, sameAmount } from "./paypal.mjs";
+import { routeUrl } from "./routes.mjs";
 
 export const META = {
   A1: { id: "A1", rule: "PP-01", group: "Attacks", title: "Paying $0.01 for a $120 booking is impossible" },
@@ -9,7 +10,7 @@ export const META = {
 };
 
 export async function createBooking(ctx, label) {
-  const res = await httpJson(`${ctx.baseUrl}/api/bookings`, {
+  const res = await httpJson(routeUrl(ctx, "createBooking"), {
     method: "POST",
     // The amount here is a trap: a correct app ignores it.
     body: { experienceId: ctx.config.experienceId, guestName: `Gate ${label}`, email: "gate-check@example.com", amount: ctx.config.tamperedAmount },
@@ -19,12 +20,12 @@ export async function createBooking(ctx, label) {
 }
 
 export async function bookingStatus(ctx, bookingId) {
-  const res = await httpJson(`${ctx.baseUrl}/api/paypal/booking-status?bookingId=${encodeURIComponent(bookingId)}`);
+  const res = await httpJson(`${routeUrl(ctx, "bookingStatus")}?bookingId=${encodeURIComponent(bookingId)}`);
   return res.ok ? String(res.json.status) : `HTTP_${res.status}`;
 }
 
 export function capture(ctx, body, headers = {}) {
-  return httpJson(`${ctx.baseUrl}/api/paypal/capture-order`, { method: "POST", body, headers, timeoutMs: 60_000 });
+  return httpJson(routeUrl(ctx, "captureOrder"), { method: "POST", body, headers, timeoutMs: 60_000 });
 }
 
 function madeUpOrderId() {
@@ -43,7 +44,7 @@ export async function httpChecks(ctx, paypal) {
     await runCheck(META.A1, async () => {
       booking = await createBooking(ctx, "A1");
       const sent = ctx.config.tamperedAmount;
-      const res = await httpJson(`${ctx.baseUrl}/api/paypal/create-order`, {
+      const res = await httpJson(routeUrl(ctx, "createOrder"), {
         method: "POST",
         body: { bookingId: booking, amount: sent, value: sent, price: Number(sent), total: sent, currency: ctx.config.currency },
       });

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { Inconclusive, STATUS, skipped } from "./util.mjs";
 import { orderFacts, sameAmount } from "./paypal.mjs";
 import { bookingStatus, capture, createBooking } from "./checks-http.mjs";
+import { routePath, routeUrl } from "./routes.mjs";
 
 export const META = {
   E1: { id: "E1", rule: "PP-04", group: "End to end", title: "A sandbox buyer pays and PayPal's record says COMPLETED" },
@@ -82,9 +83,9 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
       page.on("pageerror", (e) => consoleErrors.push(String(e?.message ?? e).slice(0, 240)));
       let createOrderSeen = false;
       page.on("request", (r) => {
-        if (r.url().includes("/api/paypal/create-order")) createOrderSeen = true;
+        if (r.url().includes(routePath(ctx, "createOrder"))) createOrderSeen = true;
       });
-      await page.route("**/api/paypal/capture-order", async (route) => {
+      await page.route(`**${routePath(ctx, "captureOrder")}`, async (route) => {
         if (seen.intercepted) return route.continue();
         try {
           seen.intercepted = JSON.parse(route.request().postData() || "{}");
@@ -99,7 +100,7 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
         }
         await route.continue();
       });
-      await page.goto(`${ctx.baseUrl}/book/${bookingA}`, { waitUntil: "domcontentloaded" });
+      await page.goto(routeUrl(ctx, "bookPage", { bookingId: bookingA }), { waitUntil: "domcontentloaded" });
       // The button is drawn before the SDK is ready (disabled while loading). Wait until it is really clickable.
       const ready = await page
         .waitForFunction(

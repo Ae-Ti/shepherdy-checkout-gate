@@ -1,5 +1,6 @@
 import { STATUS, httpJson, runCheck, skipped } from "./util.mjs";
 import { createPayPal } from "./paypal.mjs";
+import { routeUrl } from "./routes.mjs";
 
 export const META = {
   D1: { id: "D1", rule: "PP-08", group: "Setup", title: "PayPal sandbox credentials are set" },
@@ -59,7 +60,7 @@ export async function doctor(ctx) {
     await runCheck(META.D4, async () => {
       let res;
       try {
-        res = await httpJson(`${ctx.baseUrl}/api/health`, { timeoutMs: 10_000 });
+        res = await httpJson(routeUrl(ctx, "health"), { timeoutMs: 10_000 });
       } catch {
         return { status: STATUS.inconclusive, summary: `The app is not reachable at ${ctx.baseUrl}. Start it with \`npm run start\`.` };
       }
