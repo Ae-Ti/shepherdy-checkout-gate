@@ -12,6 +12,27 @@ confirmed for an order nobody paid. Scanners read code and guess. This gate asks
 
 ![flow](https://img.shields.io/badge/PayPal-Orders%20v2%20%2B%20JS%20SDK%20v6-003087) ![license](https://img.shields.io/badge/license-MIT-green)
 
+## Quick start
+
+| I want to… | Time | Go to |
+|---|---|---|
+| See it work without installing anything | 1 min | [Live demo](https://shepherdy-checkout-gate.vercel.app): book an experience, pay with a PayPal **sandbox** personal account (fake money; your own works too), then open [`/gate`](https://shepherdy-checkout-gate.vercel.app/gate) for the release report. Judges: the buyer login is in the Devpost testing instructions. |
+| Run the gate and the fix loop on my machine | 10 min | [Run it](#run-it), then [The demo](#the-demo-risky-commit--blocked--agent-fix--ready) |
+| Check my own Next.js + PayPal app | 15 min | [Use it on your own app](#use-it-on-your-own-app) |
+
+Day to day, three commands do the work:
+
+```bash
+npm run gate -- --manual
+npm run gate:static
+npm run loop -- --manual
+```
+
+`npm run gate -- --manual` runs all 14 checks against the running app and opens a browser so you approve one
+sandbox payment. `npm run gate:static` runs only the secret checks and is what CI uses. `npm run loop -- --manual`
+builds the app, gates it, lets the fix agent patch a BLOCKED commit, and gates it again. Without `--manual` the gate
+logs in as the sandbox buyer from `.env.local` on its own. Each run writes `.gate/report.html`.
+
 ---
 
 ## Who it is for, and why it matters
@@ -153,7 +174,7 @@ cp .env.example .env.local
 - Set `GATE_MOCK_TOKEN` to any long random string.
 - Keep `LLM_MODE=fake` unless you want the live Claude fix agent (then set `ANTHROPIC_API_KEY`).
 
-**3. Check that it works offline** (10 tests, no network):
+**3. Check that it works offline** (13 tests, no network):
 
 ```bash
 npm test
@@ -213,35 +234,45 @@ commit.
 
 ## Use it on your own app
 
-The gate runs against any app folder with `--app`. It reads that app's `gate.config.json` and `.env.local`, and
-writes the report to `<app>/.gate/` unless you pass `--out`.
+The gate checks any app folder you point it at with `--app`. It reads that app's `gate.config.json` and
+`.env.local`, and writes the report to `<your-app>/.gate/` unless you pass `--out`. Your app needs nothing from
+this repo to get the secret checks; the attacks need the small HTTP contract in step 5.
 
-### Static checks on any Next.js app (S1–S3)
-
-S1–S3 read the app's build output, its source folders and its git history, so they do not depend on this demo
-store. In your app:
-
-1. Put `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` and `PAYPAL_API_BASE=https://api-m.sandbox.paypal.com` in
-   `.env.local`. S1 searches the built files for the exact secret value, so it needs the real sandbox secret.
-2. Add a `gate.config.json` that lists your source folders, for example `{ "sourceDirs": ["app", "components"] }`.
-3. Run `next build`, then run the gate from a clone of this repo:
+**1. Get the gate.** Clone this repo anywhere, for example next to your app:
 
 ```bash
-node gate/run.mjs --static-only --app /path/to/your-app
+git clone https://github.com/Ae-Ti/shepherdy-checkout-gate.git
+cd shepherdy-checkout-gate
+npm ci
+npx playwright install chromium
+```
+
+**2. Point your app at the PayPal sandbox.** In your app's `.env.local`, set `PAYPAL_CLIENT_ID`,
+`PAYPAL_CLIENT_SECRET` and `PAYPAL_API_BASE=https://api-m.sandbox.paypal.com`. S1 searches your built files for
+the exact secret value, so it needs the real sandbox secret. The gate refuses to run against live PayPal (D2).
+
+**3. Describe your app.** Add a `gate.config.json` to your app's root. `sourceDirs` is enough for the secret checks:
+
+```json
+{ "sourceDirs": ["app", "components", "lib"] }
+```
+
+**4. Run the secret checks (S1–S3).** Build your app, then run the gate from the clone:
+
+```bash
+cd /path/to/your-app
+npx next build
+node /path/to/shepherdy-checkout-gate/gate/run.mjs --static-only --app .
 ```
 
 A leak makes the run BLOCKED and exits 1. A clean run exits 0 with the verdict INCONCLUSIVE, because READY also
-needs the attacks and the sandbox payment.
+needs the attacks and the sandbox payment. This was checked on a second, separate Next.js app: with a
+`next.config` that copied the secret into `NEXT_PUBLIC_PAYPAL_CLIENT_SECRET` and a client component that rendered
+it, S1 found the secret in 2 browser files, S2 found 4 places that expose it, and the run was BLOCKED. After the
+leak was removed and the app rebuilt, S1–S3 passed.
 
-This was checked on a second, separate Next.js app: with a `next.config` that copied the secret into
-`NEXT_PUBLIC_PAYPAL_CLIENT_SECRET` and a client component that rendered it, S1 found the secret in 2 browser files,
-S2 found 4 places that expose it, and the run was BLOCKED. After the leak was removed and the app rebuilt, S1–S3
-passed.
-
-### Attacks and the sandbox payment (A1–A6, E1)
-
-These need the app to follow a small HTTP contract: a pending booking (or order) record that the server prices,
-and two PayPal routes keyed by its ID.
+**5. Run the attacks and the sandbox payment (A1–A6, E1).** These need a pending booking (or order) record that the
+server prices, and PayPal routes keyed by its ID:
 
 | Route key | Default | What the gate sends and expects |
 |---|---|---|
@@ -252,24 +283,45 @@ and two PayPal routes keyed by its ID.
 | `bookingStatus` | `/api/paypal/booking-status` | `GET ?bookingId=` → `{status}`, where a paid booking says `paid` |
 | `bookPage` | `/book/{bookingId}` | the page that renders the PayPal button |
 
-If your routes have other paths, map them in `gate.config.json`; any key you leave out keeps its default:
+Map your own paths in `gate.config.json`; any key you leave out keeps its default. `experienceId` is the item the
+gate books, and `expectedAmount` is what your server must charge for it:
 
 ```json
 {
+  "sourceDirs": ["app", "components", "lib"],
   "experienceId": "your-test-item",
   "expectedAmount": "49.00",
   "routes": { "createOrder": "/api/checkout/order", "bookPage": "/orders/{bookingId}/pay" }
 }
 ```
 
-The request and response shapes still follow the table above. Adapters for apps with other shapes, and for
-frameworks other than Next.js, are next.
+Also put `PAYPAL_SANDBOX_BUYER_EMAIL` and `PAYPAL_SANDBOX_BUYER_PASSWORD` (a sandbox personal account) in
+`.env.local` for E1. For A6, set `GATE_MOCK_TOKEN` to a long random string and copy `gateMockCode()` from
+[`lib/http.ts`](lib/http.ts) into your capture route: it turns the gate's `x-gate-mock` header into PayPal's
+`PayPal-Mock-Response`, only in the sandbox and only with the token. Then start your app and run the full gate:
 
-### Other parts
+```bash
+node /path/to/shepherdy-checkout-gate/gate/run.mjs --app . --base-url http://127.0.0.1:3000 --manual
+```
 
-- **Playbook PP-00…PP-09:** plain Markdown that any coding agent can follow while it writes the integration.
-- **Fix loop:** the fixer edits only the folders listed in `agent/fixer.mjs`; any other agent plugs in with
-  `AGENT_CMD`.
+The request and response shapes still follow the table. Custom routes are covered by offline tests, but a full
+attack run with non-default routes has not been done yet. Adapters for other shapes, and for frameworks other than
+Next.js, are next.
+
+**6. Block risky pull requests in CI.** This repo's own workflow is
+[`.github/workflows/checkout-gate.yml`](.github/workflows/checkout-gate.yml): it builds the app and runs the secret
+checks on every pull request, and a BLOCKED verdict fails the job. For another repo, add the sandbox
+`PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` as repository secrets, check out with `fetch-depth: 0` (S3 reads git
+history), and run steps 1 and 4 in the job. That setup has not been run in another repo's CI yet.
+
+**7. Give your coding agent the rules.** [`playbook/paypal-checkout.md`](playbook/paypal-checkout.md) (PP-00…PP-09)
+is plain Markdown. Paste it into your agent's instructions, such as `CLAUDE.md` or `AGENTS.md`, so the integration
+is written to pass the gate in the first place.
+
+**The fix loop** runs from the repo it lives in (`node agent/loop.mjs` uses the current folder). To use it on your
+app, copy `gate/`, `agent/`, `playbook/` and your `gate.config.json` into your app's repo. The fixer edits only
+the folders listed in `EDITABLE` in `agent/fixer.mjs`; any other agent plugs in with `AGENT_CMD`. This has not been
+tried outside this repo yet.
 
 ## Deploy (Vercel)
 
