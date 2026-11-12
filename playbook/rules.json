@@ -1,0 +1,12 @@
+{
+  "PP-00": "The app must build with `npm run build`. A commit that does not build never ships.",
+  "PP-01": "The price comes only from the server: create-order reads the booking record and ignores any amount, value, price or currency the browser sends. The PayPal order amount must equal the booking amount.",
+  "PP-02": "Before capturing, GET the order from PayPal and check three things: purchase_units[0].reference_id equals this booking id, the amount equals the booking amount, and the status is APPROVED. Reject anything else (unapproved, made-up, or another booking's order) and leave the booking unpaid.",
+  "PP-03": "Capture with a fixed PayPal-Request-Id per booking and order (for example `capture-<bookingId>-<orderId>`), so a retry returns the first result instead of charging again. If the order is already captured, re-read it and reconcile instead of failing.",
+  "PP-04": "Mark a booking paid only after reading the order from PayPal again and seeing status COMPLETED with a COMPLETED capture for the booking amount. A PENDING capture is not paid. Do not rely on webhooks or on the capture response alone.",
+  "PP-05": "If PayPal answers INSTRUMENT_DECLINED, keep the booking unpaid and return HTTP 402 with { error: 'INSTRUMENT_DECLINED', retry: true } so the buyer can try another way to pay.",
+  "PP-06": "PAYPAL_CLIENT_SECRET lives only in server env. Never prefix it with NEXT_PUBLIC_, never put it in next.config `env`, never read it in a 'use client' file, and add `import \"server-only\"` to every module that reads it. The public client ID may be passed from a server component.",
+  "PP-07": "Never commit .env files or secret values. A secret that ever reached git history must be rotated in the PayPal Developer Dashboard; deleting it from code is not enough.",
+  "PP-08": "Development, the gate and the fix agent use the PayPal sandbox only (https://api-m.sandbox.paypal.com). The JS SDK runs with environment=\"sandbox\".",
+  "PP-09": "Charge in USD. PayPal does not support KRW."
+}

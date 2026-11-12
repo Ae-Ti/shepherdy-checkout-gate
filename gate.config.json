@@ -1,0 +1,10 @@
+{
+  "$comment": "Owned by humans. The fix agent never sees or edits this file; the loop restores it if it changes.",
+  "experienceId": "sunrise-kayak",
+  "expectedAmount": "120.00",
+  "currency": "USD",
+  "tamperedAmount": "0.01",
+  "baseUrl": "http://127.0.0.1:3000",
+  "sourceDirs": ["app", "components", "lib"],
+  "manualApprovalTimeoutSec": 300
+}
