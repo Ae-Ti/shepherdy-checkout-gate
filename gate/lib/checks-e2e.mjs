@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { Inconclusive, STATUS, skipped } from "./util.mjs";
 import { orderFacts, sameAmount } from "./paypal.mjs";
 import { bookingStatus, capture, createBooking } from "./checks-http.mjs";
@@ -60,13 +61,23 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
   let bookingA;
   let bookingB;
 
+  const consoleErrors = [];
+  let page = null;
   try {
     bookingA = await createBooking(ctx, "E1");
     bookingB = await createBooking(ctx, "A4");
     const browser = await pw.chromium.launch({ headless: !ctx.manual });
     try {
       const context = await browser.newContext();
-      const page = await context.newPage();
+      page = await context.newPage();
+      page.on("console", (m) => {
+        if (m.type() === "error") consoleErrors.push(m.text().slice(0, 240));
+      });
+      page.on("pageerror", (e) => consoleErrors.push(String(e?.message ?? e).slice(0, 240)));
+      let createOrderSeen = false;
+      page.on("request", (r) => {
+        if (r.url().includes("/api/paypal/create-order")) createOrderSeen = true;
+      });
       await page.route("**/api/paypal/capture-order", async (route) => {
         if (seen.intercepted) return route.continue();
         try {
@@ -83,12 +94,41 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
         await route.continue();
       });
       await page.goto(`${ctx.baseUrl}/book/${bookingA}`, { waitUntil: "domcontentloaded" });
+      // The button is drawn before the SDK is ready (disabled while loading). Wait until it is really clickable.
+      const ready = await page
+        .waitForFunction(
+          () => {
+            if (document.querySelector("[data-testid='paypal-sdk-error']")) return "sdk-error";
+            const b = document.querySelector("paypal-button");
+            if (!b) return false;
+            const disabled = b.hasAttribute("disabled") || b.disabled === true;
+            return disabled ? false : "ready";
+          },
+          null,
+          { timeout: 90_000 },
+        )
+        .then((h) => h.jsonValue())
+        .catch(() => "timeout");
+      if (ready !== "ready") {
+        const why =
+          ready === "sdk-error"
+            ? await page.locator("[data-testid='paypal-sdk-error']").innerText()
+            : "The PayPal button stayed disabled for 90s: the PayPal JS SDK did not finish loading.";
+        throw new Inconclusive(`${why}${consoleErrors.length ? ` Browser console: ${consoleErrors.slice(0, 2).join(" | ")}` : ""}`);
+      }
       const button = page.locator("paypal-button").first();
-      await button.waitFor({ state: "visible", timeout: 60_000 });
       const popupPromise = context.waitForEvent("page", { timeout: 60_000 }).catch(() => null);
-      await button.click();
+      for (let attempt = 1; attempt <= 3 && !createOrderSeen; attempt++) {
+        await button.click();
+        for (let i = 0; i < 16 && !createOrderSeen; i++) await page.waitForTimeout(500);
+      }
+      if (!createOrderSeen) {
+        throw new Inconclusive(
+          `Clicking the PayPal button did not start a payment (no create-order request).${consoleErrors.length ? ` Browser console: ${consoleErrors.slice(0, 2).join(" | ")}` : ""}`,
+        );
+      }
       if (ctx.manual) {
-        log(`  → Approve the payment in the PayPal window with the sandbox buyer account (waiting up to ${Math.round(waitMs / 1000)}s)…`);
+        log(`  → A PayPal window is open. Log in with the sandbox BUYER (personal) account and approve (waiting up to ${Math.round(waitMs / 1000)}s)…`);
       } else {
         const popup = await popupPromise;
         if (!popup) throw new Inconclusive("The PayPal window did not open. Run the gate with --manual.");
@@ -99,6 +139,14 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
       const testId = await done.getAttribute("data-testid");
       outcome = testId === "paypal-payment-success" ? "success" : testId === "paypal-payment-pending" ? "pending" : "error";
       orderId = seen.intercepted?.orderId ?? (await done.getAttribute("data-order-id"));
+      if (outcome === "error") consoleErrors.unshift(`page said: ${(await done.innerText()).slice(0, 200)}`);
+    } catch (e) {
+      // Keep a picture of what the buyer saw, for the report and for debugging.
+      if (page) {
+        fs.mkdirSync(ctx.outDir, { recursive: true });
+        await page.screenshot({ path: `${ctx.outDir}/e1-failure.png`, fullPage: true }).catch(() => {});
+      }
+      throw e;
     } finally {
       await browser.close();
     }
@@ -114,8 +162,12 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
     const why =
       flowError instanceof Inconclusive
         ? flowError.message
-        : `The sandbox payment did not finish (${flowError?.name === "TimeoutError" ? "timed out" : flowError?.message ?? "no order"}). Try --manual.`;
-    out.push(result(META.E1, STATUS.inconclusive, why));
+        : flowError?.name === "TimeoutError"
+          ? `Nobody approved the payment in the PayPal window in time.${ctx.manual ? "" : " Try --manual."}`
+          : `The sandbox payment did not finish (${flowError?.message ?? "no order"}).`;
+    const evidence = consoleErrors.slice(0, 3).map((t) => ({ label: "Browser console", actual: t }));
+    if (flowError) evidence.push({ label: "Screenshot", actual: ".gate/e1-failure.png" });
+    out.push(result(META.E1, STATUS.inconclusive, why, evidence));
   } else {
     const facts = orderFacts(await paypal.getOrder(orderId));
     const status = await bookingStatus(ctx, bookingA);

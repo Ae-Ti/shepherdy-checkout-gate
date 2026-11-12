@@ -1,7 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { PayPalOneTimePaymentButton, PayPalProvider } from "@paypal/react-paypal-js/sdk-v6";
+import { PayPalOneTimePaymentButton, PayPalProvider, usePayPal } from "@paypal/react-paypal-js/sdk-v6";
+
+// Shows whether the PayPal SDK is still loading or failed, so buyers (and the gate) are never left guessing.
+function SdkStatus() {
+  const { loadingStatus, error } = usePayPal();
+  const status = String(loadingStatus);
+  if (error || status === "rejected") {
+    return (
+      <p className="notice error" data-testid="paypal-sdk-error">
+        PayPal could not load: {error?.message ?? "unknown error"}
+      </p>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <p className="muted" data-testid="paypal-sdk-loading">
+        Loading PayPal…
+      </p>
+    );
+  }
+  return null;
+}
 
 type Props = {
   bookingId: string;
@@ -43,6 +64,7 @@ export default function PayPalCheckout({ bookingId, clientId, environment }: Pro
   return (
     <div className="paybox">
       <PayPalProvider clientId={clientId} environment={environment} components={["paypal-payments"]} pageType="checkout">
+        <SdkStatus />
         <PayPalOneTimePaymentButton
           createOrder={async () => {
             setState({ kind: "working" });

@@ -30,10 +30,10 @@ index de2a045..8bfa572 100644
            <p className="notice error">PayPal is not configured on this server yet.</p>
          )}
 diff --git a/components/PayPalCheckout.tsx b/components/PayPalCheckout.tsx
-index 2b22669..9400748 100644
+index 4399ca8..a21bf4e 100644
 --- a/components/PayPalCheckout.tsx
 +++ b/components/PayPalCheckout.tsx
-@@ -5,6 +5,7 @@ import { PayPalOneTimePaymentButton, PayPalProvider } from "@paypal/react-paypal
+@@ -26,6 +26,7 @@ function SdkStatus() {
  
  type Props = {
    bookingId: string;
@@ -41,7 +41,7 @@ index 2b22669..9400748 100644
    clientId: string; // public PayPal client ID, passed down from the server. Never the secret.
    environment: "sandbox" | "production";
  };
-@@ -29,7 +30,8 @@ function explain(code?: string): string {
+@@ -50,7 +51,8 @@ function explain(code?: string): string {
    }
  }
  
@@ -51,7 +51,7 @@ index 2b22669..9400748 100644
    const [state, setState] = useState<State>({ kind: "idle" });
  
    if (state.kind === "paid") {
-@@ -46,11 +48,10 @@ export default function PayPalCheckout({ bookingId, clientId, environment }: Pro
+@@ -68,11 +70,10 @@ export default function PayPalCheckout({ bookingId, clientId, environment }: Pro
          <PayPalOneTimePaymentButton
            createOrder={async () => {
              setState({ kind: "working" });
