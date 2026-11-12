@@ -51,7 +51,7 @@ are restored and the round is blocked.
   interception for the A4/A6 attacks; sandbox negative testing via `PayPal-Mock-Response`.
 - A playbook of PayPal rules (PP-00…PP-09) that coding agents follow and the report links back to.
 - Fix loop on the Claude Agent SDK with file-only tools, a secret-free work copy and integrity hashes.
-- Postgres or file storage for bookings, ready for Vercel (`DATABASE_URL`).
+- Postgres or file storage for bookings; the live demo runs on Vercel with Neon Postgres.
 - The booking site's PayPal integration itself was written by an AI coding agent following the playbook, and then
   had to pass the gate.
 
@@ -80,8 +80,12 @@ paypal-orders-v2, paypal-js-sdk-v6, react-paypal-js, next.js, react, typescript,
 claude-agent-sdk, claude, postgres, vercel
 
 ## Testing instructions (for judges)
+- Live demo: https://shepherdy-checkout-gate.vercel.app (release report at https://shepherdy-checkout-gate.vercel.app/gate)
+- PayPal sandbox buyer (fake money): email <SANDBOX_BUYER_EMAIL>, password <SANDBOX_BUYER_PASSWORD>
+- Book any experience, then "Continue to payment", then the PayPal button. Log in with the sandbox buyer and
+  approve.
 - Code: https://github.com/Ae-Ti/shepherdy-checkout-gate (MIT). Video: <YOUTUBE_URL>
-- No setup: `public/release/report.json` in the repo is the masked report of the run in the video, with the
+- Report file: `public/release/report.json` in the repo is the masked report of the run in the video, with the
   BLOCKED → agent fix → READY history. The site shows it at `/gate`.
 - Full run, about 10 minutes: README → "Run it". It needs only a free PayPal sandbox app; PayPal creates the
   sandbox buyer account, and all money is fake. Then `npm run gate -- --manual` attacks the checkout and makes one

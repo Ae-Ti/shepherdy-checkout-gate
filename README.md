@@ -200,7 +200,10 @@ commit.
 
 ## For judges
 
-- **No setup, 1 minute:** `public/release/report.json` in this repo is the masked report of the real run shown in
+- **Live demo, no setup:** https://shepherdy-checkout-gate.vercel.app (Vercel, Neon Postgres, PayPal sandbox). Book any experience and pay with
+  the sandbox buyer account from the Devpost testing instructions; all money is fake. `https://shepherdy-checkout-gate.vercel.app/gate` shows the
+  release report.
+- **The report file:** `public/release/report.json` in this repo is the masked report of the real run shown in
   the video: every check, what PayPal recorded, and the BLOCKED → agent fix → READY history. The site renders it
   at `/gate`.
 - **Run everything, about 10 minutes:** follow *Run it* with your own free PayPal sandbox app. PayPal creates the
@@ -270,7 +273,7 @@ frameworks other than Next.js, are next.
 
 ## Deploy (Vercel)
 
-Serverless hosts do not keep local files, so set `DATABASE_URL` to any Postgres (Neon, Supabase pooler, …);
+The live demo at https://shepherdy-checkout-gate.vercel.app runs this way. `vercel.json` selects the Next.js preset. Serverless hosts do not keep local files, so set `DATABASE_URL` to any Postgres (Neon, Supabase pooler, …);
 the `bookings` table is created on first use. Environment variables: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`,
 `PAYPAL_API_BASE=https://api-m.sandbox.paypal.com`, `DATABASE_URL`, and optionally `GATE_MOCK_TOKEN` to run the
 gate against the deployment: `npm run gate -- --base-url https://<your-app>.vercel.app --manual`.
