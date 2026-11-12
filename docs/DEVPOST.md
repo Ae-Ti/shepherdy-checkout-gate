@@ -84,7 +84,7 @@ claude-agent-sdk, claude, postgres, vercel
 - PayPal sandbox buyer (fake money): email <SANDBOX_BUYER_EMAIL>, password <SANDBOX_BUYER_PASSWORD>
 - Book any experience, then "Continue to payment", then the PayPal button. Log in with the sandbox buyer and
   approve.
-- Code: https://github.com/Ae-Ti/shepherdy-checkout-gate (MIT). Video: <YOUTUBE_URL>
+- Code: https://github.com/Ae-Ti/shepherdy-checkout-gate (MIT). Video: https://youtu.be/wHHtaSIaKq0
 - Report file: `public/release/report.json` in the repo is the masked report of the run in the video, with the
   BLOCKED → agent fix → READY history. The site shows it at `/gate`.
 - Full run, about 10 minutes: README → "Run it". It needs only a free PayPal sandbox app; PayPal creates the
