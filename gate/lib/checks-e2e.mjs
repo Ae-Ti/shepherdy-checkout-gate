@@ -63,13 +63,19 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
 
   const consoleErrors = [];
   let page = null;
+  let popupPage = null;
+  let popupShot = false;
   try {
     bookingA = await createBooking(ctx, "E1");
     bookingB = await createBooking(ctx, "A4");
     const browser = await pw.chromium.launch({ headless: !ctx.manual });
     try {
-      const context = await browser.newContext();
+      // English PayPal pages, so the run reads the same for every viewer.
+      const context = await browser.newContext({ locale: "en-US" });
       page = await context.newPage();
+      context.on("page", (p) => {
+        if (p !== page) popupPage = p;
+      });
       page.on("console", (m) => {
         if (m.type() === "error") consoleErrors.push(m.text().slice(0, 240));
       });
@@ -128,7 +134,11 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
         );
       }
       if (ctx.manual) {
-        log(`  → A PayPal window is open. Log in with the sandbox BUYER (personal) account and approve (waiting up to ${Math.round(waitMs / 1000)}s)…`);
+        const popup = await popupPromise;
+        if (popup) await popup.bringToFront().catch(() => {});
+        log(
+          `  → ${popup ? "A PayPal window is open (brought to the front)." : "Approve the payment in the PayPal dialog on the page."} Log in with the sandbox BUYER (personal) account and approve (waiting up to ${Math.round(waitMs / 1000)}s)…`,
+        );
       } else {
         const popup = await popupPromise;
         if (!popup) throw new Inconclusive("The PayPal window did not open. Run the gate with --manual.");
@@ -145,6 +155,14 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
       if (page) {
         fs.mkdirSync(ctx.outDir, { recursive: true });
         await page.screenshot({ path: `${ctx.outDir}/e1-failure.png`, fullPage: true }).catch(() => {});
+      }
+      // And of the PayPal window itself, if it is still open (login page, error, review page).
+      if (popupPage && !popupPage.isClosed()) {
+        fs.mkdirSync(ctx.outDir, { recursive: true });
+        popupShot = await popupPage
+          .screenshot({ path: `${ctx.outDir}/e1-popup.png` })
+          .then(() => true)
+          .catch(() => false);
       }
       throw e;
     } finally {
@@ -167,6 +185,7 @@ export async function e2eChecks(ctx, paypal, log = console.log) {
           : `The sandbox payment did not finish (${flowError?.message ?? "no order"}).`;
     const evidence = consoleErrors.slice(0, 3).map((t) => ({ label: "Browser console", actual: t }));
     if (flowError) evidence.push({ label: "Screenshot", actual: ".gate/e1-failure.png" });
+    if (popupShot) evidence.push({ label: "PayPal window", actual: ".gate/e1-popup.png" });
     out.push(result(META.E1, STATUS.inconclusive, why, evidence));
   } else {
     const facts = orderFacts(await paypal.getOrder(orderId));
