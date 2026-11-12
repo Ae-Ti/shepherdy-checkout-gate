@@ -52,7 +52,6 @@ function explain(code?: string): string {
 }
 
 export default function PayPalCheckout({ bookingId, amount, clientId, environment }: Props) {
-  console.debug("paypal key check", process.env.NEXT_PUBLIC_PAYPAL_CLIENT_SECRET?.slice(0, 4));
   const [state, setState] = useState<State>({ kind: "idle" });
 
   if (state.kind === "paid") {
@@ -73,7 +72,7 @@ export default function PayPalCheckout({ bookingId, amount, clientId, environmen
             const res = await fetch("/api/paypal/create-order", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ bookingId, amount }),
+              body: JSON.stringify({ bookingId }),
             });
             const json = await res.json().catch(() => ({}));
             if (!res.ok || !json.orderId) {
