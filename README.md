@@ -133,43 +133,104 @@ tests/                   offline tests (npm test)
 
 ## Run it
 
-Requirements: Node 20.9+, a free PayPal Developer account, Chrome-compatible browser for Playwright.
+Requirements: Node 20.9+, a free PayPal Developer account, and Chromium for Playwright (installed below).
+
+**1. Install.**
 
 ```bash
-git clone https://github.com/<you>/shepherdy-checkout-gate && cd shepherdy-checkout-gate
-npm install
+git clone https://github.com/Ae-Ti/shepherdy-checkout-gate.git
+cd shepherdy-checkout-gate
+npm ci
 npx playwright install chromium
 cp .env.example .env.local
-# fill PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET (Sandbox app), PAYPAL_SANDBOX_BUYER_EMAIL / _PASSWORD
-# (Sandbox personal account), GATE_MOCK_TOKEN (any long random string)
-npm test                 # offline tests, no network
-npm run build && npm run start   # booking site on http://127.0.0.1:3000
-npm run gate             # in another terminal; add `-- --manual` to approve the sandbox payment yourself
+```
+
+**2. Fill `.env.local`.** In the [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/):
+
+- Apps & Credentials → Sandbox → Create App, then copy `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`.
+- Testing Tools → Sandbox Accounts, then open the **Personal** account PayPal created for you and copy its email
+  and password into `PAYPAL_SANDBOX_BUYER_EMAIL` and `PAYPAL_SANDBOX_BUYER_PASSWORD`.
+- Set `GATE_MOCK_TOKEN` to any long random string.
+- Keep `LLM_MODE=fake` unless you want the live Claude fix agent (then set `ANTHROPIC_API_KEY`).
+
+**3. Check that it works offline** (10 tests, no network):
+
+```bash
+npm test
+```
+
+**4. Start the booking site** on http://127.0.0.1:3000:
+
+```bash
+npm run build
+npm run start
+```
+
+**5. Run the gate** in a second terminal. `--manual` opens a browser so you approve the sandbox payment yourself;
+without it the gate tries to log in as the sandbox buyer on its own.
+
+```bash
+npm run gate -- --manual
 open .gate/report.html
-npm run gate:publish     # copy the latest real run to public/release/ so /gate shows it (secrets masked)
+```
+
+**6. Publish the run** to the site's `/gate` page (secrets masked), then open http://127.0.0.1:3000/gate after
+the next build:
+
+```bash
+npm run gate:publish
 ```
 
 ### The demo: risky commit → BLOCKED → agent fix → READY
 
+Start on `main` with a READY run (step 5 above), which records the last READY commit. Stop the site on :3000
+first, because the loop builds and starts its own copy on :3100. Then apply the risky commit and start the loop:
+
 ```bash
-npm run gate -- --manual          # on main: READY (records the last READY commit)
 git switch -c demo/risky-checkout
 git apply demo/risky-checkout.patch
 git commit -am "feat: faster checkout (send price from the button, debug PayPal key)"
-npm run loop -- --manual          # round 1 BLOCKED (S1, S2, A1) → fix agent → round 2 READY
+npm run loop -- --manual
 ```
 
-Use `LLM_MODE=fake npm run loop -- --manual` to run the same loop without an Anthropic API key.
+Round 1 is BLOCKED (S1, S2, A1). The fix agent patches the source, the loop commits `fix(agent): …`, and round 2
+is READY after one sandbox approval. If port 3100 is taken, add `--port 3200`. With `LLM_MODE=fake` the same loop
+runs without an Anthropic API key: instead of calling Claude, it restores the flagged files from the last READY
+commit.
 
 ## For judges
 
-- **Live site:** see "Testing instructions" in the Devpost submission for the URL and a **PayPal sandbox buyer
-  account** (fake money). Book any experience and pay with that account.
-- **Release report:** open `/gate` on the live site to see the latest real gate run: every check, what PayPal
-  recorded, and the BLOCKED → agent fix → READY history. No setup needed.
-- **Run the gate yourself:** follow *Run it* with your own PayPal sandbox app (Developer Dashboard → Apps &
-  Credentials → Sandbox → Create App; Testing Tools → Sandbox Accounts for the buyer).
-- Judges do not need an Anthropic key: `LLM_MODE=fake` exercises the full loop.
+- **No setup, 1 minute:** `public/release/report.json` in this repo is the masked report of the real run shown in
+  the video: every check, what PayPal recorded, and the BLOCKED → agent fix → READY history. The site renders it
+  at `/gate`.
+- **Run everything, about 10 minutes:** follow *Run it* with your own free PayPal sandbox app. PayPal creates the
+  sandbox buyer account for you, and all money is fake. Nothing here needs our keys.
+- **See it block a bad commit:** follow *The demo* above. Judges do not need an Anthropic key: `LLM_MODE=fake`
+  runs the whole loop.
+
+## Use it on your own app
+
+Today the gate is built for Next.js apps with a server-side PayPal Orders v2 checkout. What carries over as is,
+and what an app has to provide:
+
+| Part | Works on another app? |
+|---|---|
+| S1–S3 (secret in the built bundle, `NEXT_PUBLIC_`/client leaks, git history and rotation lock) | Not tied to this app: they read the build output, the source folders and git history. Put a `gate.config.json` with `sourceDirs` in your app and run `node gate/run.mjs --static-only --app <path-to-your-app>`. Not yet tried on a second app. |
+| D1–D4, A1–A6, E1 (attacks and the real sandbox payment) | Yes, if the app exposes the small HTTP contract below, or a thin adapter that maps it to your routes. |
+| Playbook PP-00…PP-09 | Yes. It is plain Markdown that any coding agent can follow while it writes the integration. |
+| Fix loop | Yes. The fixer edits only the folders listed in `agent/fixer.mjs`; any other agent plugs in with `AGENT_CMD`. |
+
+The HTTP contract the attack checks use:
+
+- `GET /api/health`
+- `POST /api/bookings {experienceId, guestName, email}` → `201 {bookingId}`
+- `POST /api/paypal/create-order {bookingId}` → `{orderId}`
+- `POST /api/paypal/capture-order {orderId, bookingId}`
+- `GET /api/paypal/booking-status?bookingId=`
+- a page at `/book/<bookingId>` that renders the PayPal button
+
+`gate.config.json` holds the test item and the price it must cost (`experienceId`, `expectedAmount`).
+Configurable route names and adapters for other frameworks are next on the list.
 
 ## Deploy (Vercel)
 
