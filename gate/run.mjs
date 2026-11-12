@@ -27,4 +27,6 @@ const report = await runGate({
   note: values.note,
   quiet: values.quiet,
 });
-process.exit(EXIT_CODE[report.verdict] ?? 2);
+// In CI (static-only) only BLOCKED fails the job; READY always needs the sandbox run.
+const code = values["static-only"] ? (report.verdict === "BLOCKED" ? 1 : 0) : (EXIT_CODE[report.verdict] ?? 2);
+process.exit(code);

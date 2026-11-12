@@ -11,6 +11,16 @@ booking for an order nobody paid. We build Shepherdy, an agent that takes AI-bui
 "actually used". Payments are where an AI-built app most often breaks, so we turned our launch-readiness gate into
 an open tool focused on PayPal.
 
+## Who it is for
+- Founders and small teams who build with AI coding tools and take PayPal payments, but cannot review payment code.
+- Agencies and freelancers who ship AI-built client sites and need proof the checkout held before handover.
+- PayPal's developer ecosystem: fewer broken integrations in production, and failure paths tested on every change.
+
+Why now: about 1 in 5 of ~130,000 sites published from vibe-coding platforms leaked at least one secret (RedHunt
+Labs); an AI tool put a payment secret key in client-side JavaScript and an attacker charged 175 customers $500 each
+(Towards AI); AI-generated code shipped without sandbox testing broke a payment system for a month (GetDevDone).
+Links are in the README.
+
 ## What it does
 Shepherdy Checkout Gate sits in front of a merge or deploy and runs 14 checks against a Next.js app with a PayPal
 checkout. Instead of guessing from code, it asks PayPal:
@@ -22,6 +32,10 @@ checkout. Instead of guessing from code, it asks PayPal:
 - it retries the capture and counts PayPal's captures (A5);
 - it searches the built browser files for the secret's exact value, checks `NEXT_PUBLIC_` and `next.config` leaks,
   committed `.env` files and git history, and keeps blocking until a leaked key is rotated (S1–S3).
+
+It comes as a complete loop: a playbook for coding agents, the gate CLI, a GitHub Actions workflow that blocks
+risky pull requests, a fix agent, and a release report published on the site at `/gate` with a "Checkout
+verified" badge on every page.
 
 The verdict is READY, BLOCKED or NOT PROVEN, decided by rule code. When it is BLOCKED, a fix agent built on the
 Claude Agent SDK gets a brief with the failed rule IDs and PayPal's evidence, edits only source files in a copy that
@@ -66,7 +80,7 @@ paypal-orders-v2, paypal-js-sdk-v6, react-paypal-js, next.js, react, typescript,
 claude-agent-sdk, claude, postgres, vercel
 
 ## Testing instructions (for judges)
-- Live site: <DEPLOYED_URL>
+- Live site: <DEPLOYED_URL> (release report at <DEPLOYED_URL>/gate)
 - PayPal sandbox buyer (fake money): email <SANDBOX_BUYER_EMAIL>, password <SANDBOX_BUYER_PASSWORD>
 - Book any experience → "Continue to payment" → PayPal button → log in with the sandbox buyer → approve.
 - To run the gate: see README → "Run it" (your own free PayPal sandbox app; no Anthropic key needed with `LLM_MODE=fake`).

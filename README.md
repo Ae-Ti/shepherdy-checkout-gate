@@ -14,6 +14,37 @@ confirmed for an order nobody paid. Scanners read code and guess. This gate asks
 
 ---
 
+## Who it is for, and why it matters
+
+- **Founders and small teams building with AI coding tools.** They can get a PayPal button working in minutes but
+  cannot review payment code. The gate checks the parts that lose money.
+- **Agencies and freelancers shipping AI-built sites.** A READY report on the exact commit is proof for the client
+  that the checkout was attacked and held before handover.
+- **PayPal's developer ecosystem.** Fewer broken integrations reach production, and failure paths that are hard to
+  reproduce in the sandbox get tested on every change.
+
+The problem is not hypothetical:
+
+- About 1 in 5 of ~130,000 sites published from vibe-coding platforms leaked at least one secret
+  ([RedHunt Labs](https://redhuntlabs.com/blog/echoes-of-ai-exposure-thousands-of-secrets-leaking-through-vibe-coded-sites-wave-15-project-resonance/)).
+- An AI tool put a payment secret key in client-side JavaScript; an attacker charged 175 stored customers $500 each
+  ([Towards AI](https://pub.towardsai.net/vibe-coding-didnt-break-these-startups-vibe-deploying-did-3bdd8d0428c4)).
+- AI-generated code shipped without sandbox testing broke a working payment system for about a month
+  ([GetDevDone](https://getdevdone.com/blog/the-vibe-coding-tax-a-payment-integration-broken-by-ai-restored-by-engineering.html)).
+- An agent can make a payment flow run end to end, but cannot know the business rules the money must obey unless
+  someone tells it ([Stripe developer blog](https://stripe.dev/blog/helping-ai-built-payment-integration-understand-business-intent)).
+- PayPal's own engineers describe developers and merchants dropping off during sandbox integration flows
+  ([PayPal Tech](https://medium.com/paypal-tech/how-paypal-is-solving-merchant-dropout-issues-with-sandbox-integrations-bbde98f588fc)).
+
+## The product, end to end
+
+1. **Playbook** for any coding agent (`playbook/paypal-checkout.md`, rules PP-00…PP-09).
+2. **Gate** you run locally or before a deploy: `npm run gate` (14 checks, exit 0/1/2).
+3. **CI**: `.github/workflows/checkout-gate.yml` runs the static checks on every pull request and blocks the merge.
+4. **Fix loop**: `npm run loop` turns a BLOCKED report into a patch from the fix agent, then gates again.
+5. **Release report on the site**: `npm run gate:publish` publishes the latest real run to `/gate`, and every page
+   shows a "Checkout verified" badge that links to it.
+
 ## What it does
 
 The repo contains two things:
@@ -115,6 +146,7 @@ npm test                 # offline tests, no network
 npm run build && npm run start   # booking site on http://127.0.0.1:3000
 npm run gate             # in another terminal; add `-- --manual` to approve the sandbox payment yourself
 open .gate/report.html
+npm run gate:publish     # copy the latest real run to public/release/ so /gate shows it (secrets masked)
 ```
 
 ### The demo: risky commit → BLOCKED → agent fix → READY
@@ -133,6 +165,8 @@ Use `LLM_MODE=fake npm run loop -- --manual` to run the same loop without an Ant
 
 - **Live site:** see "Testing instructions" in the Devpost submission for the URL and a **PayPal sandbox buyer
   account** (fake money). Book any experience and pay with that account.
+- **Release report:** open `/gate` on the live site to see the latest real gate run: every check, what PayPal
+  recorded, and the BLOCKED → agent fix → READY history. No setup needed.
 - **Run the gate yourself:** follow *Run it* with your own PayPal sandbox app (Developer Dashboard → Apps &
   Credentials → Sandbox → Create App; Testing Tools → Sandbox Accounts for the buyer).
 - Judges do not need an Anthropic key: `LLM_MODE=fake` exercises the full loop.

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { VerifiedBadge } from "@/components/ReleaseReport";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,10 +18,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span className="brand-mark" aria-hidden>◐</span> Lumen Trails
           </Link>
           <span className="header-note">Small-group experiences, booked in a minute</span>
+          <nav className="nav">
+            <Link href="/">Experiences</Link>
+            <Link href="/gate">Release report</Link>
+            <VerifiedBadge />
+          </nav>
         </header>
         <main className="main">{children}</main>
         <footer className="footer">
-          Checkout released only after <strong>Shepherdy Checkout Gate</strong> verified it against PayPal&apos;s own records.
+          This checkout ships only after <Link href="/gate">Shepherdy Checkout Gate</Link> attacks it in the PayPal sandbox and
+          verifies it against PayPal&apos;s own records.
         </footer>
       </body>
     </html>

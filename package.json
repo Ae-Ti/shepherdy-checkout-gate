@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "gate": "node gate/run.mjs",
     "gate:static": "node gate/run.mjs --static-only",
+    "gate:publish": "node scripts/publish-report.mjs",
     "loop": "node agent/loop.mjs",
     "test": "LLM_MODE=fake node --test tests/*.test.mjs"
   },
