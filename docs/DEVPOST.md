@@ -7,9 +7,9 @@
 ## Inspiration
 AI coding tools can add "Pay with PayPal" to an app in minutes. The happy path works and the demo passes, but the
 same code often lets the browser choose the price, leaks the secret key into the JavaScript bundle, or confirms a
-booking for an order nobody paid. We build Shepherdy, an agent that takes AI-built apps from "works on screen" to
-"actually used". Payments are where an AI-built app most often breaks, so we turned our launch-readiness gate into
-an open tool focused on PayPal.
+booking for an order nobody paid. I'm building Shepherdy, an agent that takes AI-built apps from "works on screen"
+to "actually used". A checkout bug loses money directly, so I turned Shepherdy's launch-readiness gate
+into an open tool for PayPal.
 
 ## Who it is for
 - Founders and small teams who build with AI coding tools and take PayPal payments, but cannot review payment code.
@@ -63,13 +63,13 @@ are restored and the round is blocked.
 - Keeping secrets away from the AI end to end: work copies without `.env`, a filtered environment, masked reports.
 
 ## Accomplishments that we're proud of
-- Verdicts grounded in PayPal's own records, not in pattern matching.
+- Every verdict on money comes from PayPal's own order and capture records.
 - An agent loop where the agent fixes but cannot grade itself.
 - A rotation lock: deleting a leaked key from code is not enough to pass.
 
 ## What we learned
-Most payment bugs written by AI are business-logic bugs that look fine in code review and only show up when you
-attack the flow and read the payment provider's records.
+The bugs in the demo commit are business-logic bugs. The commit builds, the diff looks plausible, and the button
+still works; the bugs show up only when something attacks the flow and reads PayPal's records.
 
 ## What's next
 GitHub Action, more PayPal flows (subscriptions, refunds, webhooks with signature checks), and the same gate inside

@@ -204,7 +204,7 @@ commit.
   the video: every check, what PayPal recorded, and the BLOCKED → agent fix → READY history. The site renders it
   at `/gate`.
 - **Run everything, about 10 minutes:** follow *Run it* with your own free PayPal sandbox app. PayPal creates the
-  sandbox buyer account for you, and all money is fake. Nothing here needs our keys.
+  sandbox buyer account for you, and all money is fake. You do not need any of my keys.
 - **See it block a bad commit:** follow *The demo* above. Judges do not need an Anthropic key: `LLM_MODE=fake`
   runs the whole loop.
 
@@ -252,7 +252,7 @@ gate against the deployment: `npm run gate -- --base-url https://<your-app>.verc
 ## Built during the submission period
 
 Everything in this repository was written on Nov 12–13, 2026, inside the hackathon window. It is a new, open
-module derived from **Shepherdy**, our private launch-agent prototype, which itself was started on Nov 4, 2026
+module derived from **Shepherdy**, my private launch-agent prototype, which itself was started on Nov 4, 2026
 (24 commits, Nov 4–10). The private prototype covers other integrations and services and is not part of this
 submission; nothing here depends on it. See `git log` for the day-by-day history of this repository.
 
