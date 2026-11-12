@@ -1,0 +1,328 @@
+{
+  "tool": "shepherdy-checkout-gate",
+  "version": "0.1.0",
+  "verdict": "READY",
+  "startedAt": "2026-11-12T18:48:49.580Z",
+  "finishedAt": "2026-11-12T18:49:15.394Z",
+  "durationMs": 25814,
+  "target": "http://127.0.0.1:3200",
+  "mode": "automatic",
+  "commit": "448df8b",
+  "branch": "demo/risky-checkout",
+  "subject": "fix(agent): satisfy PP-06, PP-01",
+  "note": "fix loop round 2",
+  "checks": [
+    {
+      "id": "D1",
+      "rule": "PP-08",
+      "title": "PayPal sandbox credentials are set",
+      "group": "Setup",
+      "evidence": [],
+      "debugIds": [],
+      "status": "pass",
+      "summary": "Client ID and secret are present (values hidden).",
+      "ms": 0
+    },
+    {
+      "id": "D2",
+      "rule": "PP-08",
+      "title": "Everything points at the PayPal sandbox, never live",
+      "group": "Setup",
+      "evidence": [],
+      "debugIds": [],
+      "status": "pass",
+      "summary": "PAYPAL_API_BASE is the sandbox.",
+      "ms": 0
+    },
+    {
+      "id": "D3",
+      "rule": "PP-08",
+      "title": "PayPal sandbox is answering",
+      "group": "Setup",
+      "evidence": [],
+      "debugIds": [
+        "f358814c751b8"
+      ],
+      "status": "pass",
+      "summary": "Got a sandbox access token.",
+      "ms": 1043
+    },
+    {
+      "id": "D4",
+      "rule": "PP-08",
+      "title": "The app is running and can store bookings",
+      "group": "Setup",
+      "evidence": [],
+      "debugIds": [],
+      "status": "pass",
+      "summary": "App is up (store: file, PayPal host: api-m.sandbox.paypal.com).",
+      "ms": 6
+    },
+    {
+      "id": "S1",
+      "rule": "PP-06",
+      "title": "The PayPal secret is not in what browsers download",
+      "group": "Secrets",
+      "evidence": [
+        {
+          "label": "Files scanned",
+          "actual": "35",
+          "ok": true
+        }
+      ],
+      "debugIds": [],
+      "status": "pass",
+      "summary": "Scanned 35 built files. The secret (sha256:1cd5d38384a1) is not in any of them.",
+      "ms": 6
+    },
+    {
+      "id": "S2",
+      "rule": "PP-06",
+      "title": "No public variable or client component can read the secret",
+      "group": "Secrets",
+      "evidence": [],
+      "debugIds": [],
+      "status": "pass",
+      "summary": "No NEXT_PUBLIC_*SECRET*, no secret in next.config env, no client component touching the secret.",
+      "ms": 2
+    },
+    {
+      "id": "S3",
+      "rule": "PP-07",
+      "title": "No .env file or secret value is in git, and leaked keys were rotated",
+      "group": "Secrets",
+      "evidence": [],
+      "debugIds": [],
+      "status": "pass",
+      "summary": "No env files tracked; sha256:1cd5d38384a1 is not in any commit and has never leaked.",
+      "ms": 111
+    },
+    {
+      "id": "A1",
+      "rule": "PP-01",
+      "title": "Paying $0.01 for a $120 booking is impossible",
+      "group": "Attacks",
+      "evidence": [
+        {
+          "label": "Browser sent",
+          "actual": "0.01 USD"
+        },
+        {
+          "label": "PayPal recorded",
+          "expected": "120.00 USD",
+          "actual": "120.00 USD",
+          "ok": true
+        },
+        {
+          "label": "PayPal reference_id",
+          "expected": "bk_a033840f8cae",
+          "actual": "bk_a033840f8cae",
+          "ok": true
+        },
+        {
+          "label": "PayPal order",
+          "actual": "3E03062264296230M"
+        }
+      ],
+      "debugIds": [
+        "f713099d14932"
+      ],
+      "status": "pass",
+      "summary": "The browser asked for 0.01; PayPal recorded the server price 120.00.",
+      "ms": 3636
+    },
+    {
+      "id": "A2",
+      "rule": "PP-02",
+      "title": "A booking cannot be confirmed without the buyer approving the payment",
+      "group": "Attacks",
+      "evidence": [
+        {
+          "label": "Capture before approval",
+          "expected": "refused",
+          "actual": "HTTP 409 ORDER_NOT_APPROVED",
+          "ok": true
+        },
+        {
+          "label": "Booking status",
+          "expected": "not paid",
+          "actual": "awaiting_payment",
+          "ok": true
+        },
+        {
+          "label": "PayPal order status",
+          "expected": "not COMPLETED",
+          "actual": "CREATED",
+          "ok": true
+        }
+      ],
+      "debugIds": [],
+      "status": "pass",
+      "summary": "Capturing an order nobody approved was refused; the booking stayed unpaid.",
+      "ms": 1821
+    },
+    {
+      "id": "A3",
+      "rule": "PP-02",
+      "title": "A made-up PayPal order ID cannot confirm a booking",
+      "group": "Attacks",
+      "evidence": [
+        {
+          "label": "Made-up order ID",
+          "actual": "5A9Y1QV5UHC4HP69G"
+        },
+        {
+          "label": "App answer",
+          "expected": "refused",
+          "actual": "HTTP 404 INVALID_RESOURCE_ID",
+          "ok": true
+        },
+        {
+          "label": "Booking status",
+          "expected": "not paid",
+          "actual": "awaiting_payment",
+          "ok": true
+        }
+      ],
+      "debugIds": [],
+      "status": "pass",
+      "summary": "A made-up order ID was refused.",
+      "ms": 995
+    },
+    {
+      "id": "E1",
+      "rule": "PP-04",
+      "title": "A sandbox buyer pays and PayPal's record says COMPLETED",
+      "group": "End to end",
+      "status": "pass",
+      "summary": "PayPal recorded a COMPLETED capture at the server price, and only then the booking became paid.",
+      "evidence": [
+        {
+          "label": "PayPal order status",
+          "expected": "COMPLETED",
+          "actual": "COMPLETED",
+          "ok": true
+        },
+        {
+          "label": "PayPal capture status",
+          "expected": "COMPLETED",
+          "actual": "COMPLETED",
+          "ok": true
+        },
+        {
+          "label": "PayPal captured amount",
+          "expected": "120.00 USD",
+          "actual": "120.00 USD",
+          "ok": true
+        },
+        {
+          "label": "PayPal reference_id",
+          "expected": "bk_121d9ec9d3f9",
+          "actual": "bk_121d9ec9d3f9",
+          "ok": true
+        },
+        {
+          "label": "Booking status in the app",
+          "expected": "paid",
+          "actual": "paid",
+          "ok": true
+        },
+        {
+          "label": "PayPal order",
+          "actual": "2J784920TA013871M"
+        }
+      ],
+      "debugIds": [
+        "f6040148c5b63"
+      ],
+      "ms": 15729
+    },
+    {
+      "id": "A4",
+      "rule": "PP-02",
+      "title": "An approved order cannot be attached to another booking",
+      "group": "Attacks",
+      "status": "pass",
+      "summary": "Attaching an approved order to a different booking was refused.",
+      "evidence": [
+        {
+          "label": "Approved order reused for",
+          "actual": "bk_ced2c4007bfe"
+        },
+        {
+          "label": "App answer",
+          "expected": "refused",
+          "actual": "HTTP 409 ORDER_BOOKING_MISMATCH",
+          "ok": true
+        },
+        {
+          "label": "Other booking status",
+          "expected": "not paid",
+          "actual": "awaiting_payment",
+          "ok": true
+        }
+      ],
+      "debugIds": [],
+      "ms": 0
+    },
+    {
+      "id": "A6",
+      "rule": "PP-05",
+      "title": "A declined payment leaves the booking unpaid so the buyer can retry",
+      "group": "Attacks",
+      "status": "pass",
+      "summary": "The declined payment kept the booking unpaid and told the buyer to retry.",
+      "evidence": [
+        {
+          "label": "PayPal-Mock-Response",
+          "actual": "INSTRUMENT_DECLINED (sandbox negative testing)"
+        },
+        {
+          "label": "App answer",
+          "expected": "HTTP 402 INSTRUMENT_DECLINED, retry allowed",
+          "actual": "HTTP 402 INSTRUMENT_DECLINED",
+          "ok": true
+        },
+        {
+          "label": "Booking status right after",
+          "expected": "not paid",
+          "actual": "awaiting_payment",
+          "ok": true
+        }
+      ],
+      "debugIds": [],
+      "ms": 0
+    },
+    {
+      "id": "A5",
+      "rule": "PP-03",
+      "title": "Retrying the capture never charges twice",
+      "group": "Attacks",
+      "status": "pass",
+      "summary": "Retrying returned the same paid result and PayPal holds exactly one capture.",
+      "evidence": [
+        {
+          "label": "Second capture request",
+          "expected": "same result, no new charge",
+          "actual": "HTTP 200 paid",
+          "ok": true
+        },
+        {
+          "label": "Captures recorded by PayPal",
+          "expected": "1",
+          "actual": "1",
+          "ok": true
+        },
+        {
+          "label": "Booking status",
+          "expected": "paid",
+          "actual": "paid",
+          "ok": true
+        }
+      ],
+      "debugIds": [],
+      "ms": 0
+    }
+  ],
+  "publishedAt": "2026-11-12T18:49:37.749Z"
+}

@@ -1,0 +1,40 @@
+[
+  {
+    "at": "2026-11-12T18:48:18.202Z",
+    "kind": "gate",
+    "verdict": "BLOCKED",
+    "commit": "fb9704d",
+    "branch": "demo/risky-checkout",
+    "subject": "feat: faster checkout (send price from the button, debug PayPal key)",
+    "note": "fix loop round 1",
+    "target": "http://127.0.0.1:3200",
+    "failed": [
+      "S1 PP-06",
+      "S2 PP-06",
+      "A1 PP-01"
+    ]
+  },
+  {
+    "at": "2026-11-12T18:48:45.222Z",
+    "kind": "fix",
+    "agent": "Claude Agent SDK (claude-sonnet-5-5)",
+    "files": [
+      "app/api/paypal/create-order/route.ts",
+      "components/PayPalCheckout.tsx",
+      "next.config.ts"
+    ],
+    "summary": "I made three changes. The first two satisfy S1 and S2 (PP-06) and the third satisfies A1 (PP-01). I couldn't run a build or the gate.\n\n- **PP-06 (S1, S2):**\n  - I removed the `env` block from `next.config.ts`. It copied `PAYPAL_CLIENT_SECRET` into a `NEXT_PUBLIC_` variable.\n  - I removed the `console.debug` line in `components/PayPalCheckout.tsx` that read that variable.\n  - `lib/paypal.ts` is the only module that reads the secret, and it already imports `\"server-only\"`.\n- **PP-01 (A1):** `create-order/route.ts` now always uses `booking.amount` and ignores any amount the browser sends. `PayPalCheckout.tsx` also no longer sends `amount` in its request.\n\nThe leaked secret is still in the old `.next/static/chunks/0yz9f_6hdfk44.js`. A fresh `npm run build` should replace it, but I haven't confirmed that. The secret was exposed in browser bundles, so rotate it in the PayPal Developer Dashboard (PP-07).",
+    "diff": " app/api/paypal/create-order/route.ts | 3 +--\n components/PayPalCheckout.tsx        | 3 +--\n next.config.ts                       | 4 ----\n 3 files changed, 2 insertions(+), 8 deletions(-)\n\ndiff --git a/app/api/paypal/create-order/route.ts b/app/api/paypal/create-order/route.ts\nindex 8d3b6a2..5904c2a 100644\n--- a/app/api/paypal/create-order/route.ts\n+++ b/app/api/paypal/create-order/route.ts\n@@ -15,8 +15,7 @@ export async function POST(req: Request) {\n   if (!booking) return errorJson(404, \"BOOKING_NOT_FOUND\");\n   if (booking.status === \"paid\") return errorJson(409, \"ALREADY_PAID\");\n \n-  // Faster checkout: use the amount the button sends, so discounts show up instantly.\n-  const amount = typeof body.amount === \"string\" ? body.amount : booking.amount;\n+  const amount = booking.amount;\n   try {\n     const order = await createOrder({\n       bookingId: booking.id,\ndiff --git a/components/PayPalCheckout.tsx b/components/PayPalCheckout.tsx\nindex a21bf4e..2a93142 100644\n--- a/components/PayPalCheckout.tsx\n+++ b/components/PayPalCheckout.tsx\n@@ -52,7 +52,6 @@ function explain(code?: string): string {\n }\n \n export default function PayPalCheckout({ bookingId, amount, clientId, environment }: Props) {\n-  console.debug(\"paypal key check\", process.env.NEXT_PUBLIC_PAYPAL_CLIENT_SECRET?.slice(0, 4));\n   const [state, setState] = useState<State>({ kind: \"idle\" });\n \n   if (state.kind === \"paid\") {\n@@ -73,7 +72,7 @@ export default function PayPalCheckout({ bookingId, amount, clientId, environmen\n             const res = await fetch(\"/api/paypal/create-order\", {\n               method: \"POST\",\n               headers: { \"Content-Type\": \"application/json\" },\n-              body: JSON.stringify({ bookingId, amount }),\n+              body: JSON.stringify({ bookingId }),\n             });\n             const json = await res.json().catch(() => ({}));\n             if (!res.ok || !json.orderId) {\ndiff --git a/next.config.ts b/next.config.ts\nindex 2039f4d..4a479ed 100644\n--- a/next.config.ts\n+++ b/next.config.ts\n@@ -2,10 +2,6 @@ import type { NextConfig } from \"next\";\n \n const nextConfig: NextConfig = {\n   poweredByHeader: false,\n-  // Quick fix from the AI assistant: expose the key so the button can debug PayPal calls.\n-  env: {\n-    NEXT_PUBLIC_PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET,\n-  },\n };\n \n export default nextConfig;\n"
+  },
+  {
+    "at": "2026-11-12T18:49:15.395Z",
+    "kind": "gate",
+    "verdict": "READY",
+    "commit": "448df8b",
+    "branch": "demo/risky-checkout",
+    "subject": "fix(agent): satisfy PP-06, PP-01",
+    "note": "fix loop round 2",
+    "target": "http://127.0.0.1:3200",
+    "failed": []
+  }
+]
